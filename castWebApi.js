@@ -195,6 +195,47 @@ function createWebServer() {
 			}
 		}
 
+		else if (parsedUrl['pathname']=="/setDeviceArbitraryCommand") {
+			res.statusCode = 200;
+			res.setHeader('Content-Type', 'application/json; charset=utf-8');
+			if (parsedUrl['query']['address'] && parsedUrl['query']['transportId'] && parsedUrl['query']['sessionId'] && parsedUrl['query']['urn'] && parsedUrl['query']['myJson']  ) {
+				setDeviceArbitraryCommand(parsedUrl['query']['address'],  parsedUrl['query']['transportId'], parsedUrl['query']['sessionId'], parsedUrl['query']['urn'], parsedUrl['query']['myJson']).then(mediaStatus => {
+					if (mediaStatus) {
+						res.statusCode = 200;
+						res.setHeader('Content-Type', 'application/json; charset=utf-8');
+						res.end(mediaStatus);
+					} else {
+						res.statusCode = 500;
+						res.end();
+					}
+				});
+			} else {
+				res.statusCode = 400;
+				res.end('Parameter error');
+			}
+		}
+
+                else if (parsedUrl['pathname']=="/launchMyApp") {
+                        res.statusCode = 200;
+                        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                        if (parsedUrl['query']['address'] && parsedUrl['query']['appId'] ) {
+                                launchMyApp(parsedUrl['query']['address'],  parsedUrl['query']['appId']).then(mediaStatus => {
+                                        if (mediaStatus) {
+                                                res.statusCode = 200;
+                                                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                                                res.end(mediaStatus);
+                                        } else {
+                                                res.statusCode = 500;
+                                                res.end();
+                                        }
+                                });
+                        } else {
+                                res.statusCode = 400;
+                                res.end('Parameter error');
+                        }
+                }
+
+
 		else if (parsedUrl['pathname']=="/setMediaPlayback") {
 			res.statusCode = 200;
 			res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -631,6 +672,47 @@ function setDevicePlaybackStop(address, sId) {
 	});
 }
 
+
+function setDeviceArbitraryCommand(address, tId, sId, urn, myJson) {
+	return new Promise(resolve => {
+		var deviceStatus, connection, receiver, exception;
+		var client = new Client();
+		var corrRequestId = getNewRequestId();
+
+		debug('setDeviceArbitraryCommand addr: %s', address,'tId', tId, 'seId:', sId, 'urn', urn, 'myJson', myJson);
+		try {
+			client.connect(parseAddress(address), function() {
+			    connection = client.createChannel('sender-0', tId, urn, 'JSON');
+
+			    connection.send(JSON.parse(myJson));
+
+			    connection.on('message', function(data, broadcast) {
+			  		if (data.requestId==corrRequestId) {
+						deviceStatus = data;
+						debug('setDevicePlaybackStop recv: %s', JSON.stringify(deviceStatus));
+						resolve(JSON.stringify(deviceStatus));
+				 	}
+			   	});
+		  	});
+
+		  	client.on('error', function(err) {
+			 	handleException(err);
+				closeClientConnection(client, connection);
+				resolve(null);
+			});
+		} catch (e) {
+		 	handleException(err);
+			closeClientConnection(client, connection);
+			resolve(null);
+		}
+		setTimeout(() => {
+			closeClientConnection(client, connection);
+			resolve(null);
+	  	}, networkTimeout);
+	});
+}
+
+
 function setMediaPlayback(address, mediaType, mediaUrl, mediaStreamType, mediaTitle, mediaSubtitle, mediaImageUrl) {
 	return new Promise(resolve => {
 		var Client = require('castv2-client').Client;
@@ -683,6 +765,27 @@ function setMediaPlayback(address, mediaType, mediaUrl, mediaStreamType, mediaTi
 			    	resolve(null);
 			  	}, appLoadTimeout);
 		    });
+	 	});
+
+	  	client.on('error', function(err) {
+	  		handleException(err);
+	  		try{client.close();}catch(e){handleException(e);}
+	  		resolve(null);
+	  	});
+	});
+}
+
+function launchMyApp(address, appId) {
+	return new Promise(resolve => {
+		var Client = require('castv2-client').Client;
+		var Application = require('castv2-client').Application;
+		var client = new Client();
+
+		debug('launchMyApp addr: %s', address, 'seId:', appId);
+
+		Application.APP_ID=appId
+	  	client.connect(parseAddress(address), function() {
+			client.launch(Application);
 	 	});
 
 	  	client.on('error', function(err) {

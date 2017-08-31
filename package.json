@@ -10,6 +10,7 @@
     	"debug": "^2.1.1",
     	"http": "*",
     	"castv2": "*",
+	"castv2-castdeck":"git://github.com:garci66/castv2-castdeck.git"
     	"mdns-js": "*",
     	"url": "*",
     	"minimist": "*",
