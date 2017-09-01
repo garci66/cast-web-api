@@ -215,26 +215,25 @@ function createWebServer() {
 			}
 		}
 
-                else if (parsedUrl['pathname']=="/launchMyApp") {
-                        res.statusCode = 200;
-                        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-                        if (parsedUrl['query']['address'] && parsedUrl['query']['appId'] ) {
-                                launchMyApp(parsedUrl['query']['address'],  parsedUrl['query']['appId']).then(mediaStatus => {
-                                        if (mediaStatus) {
-                                                res.statusCode = 200;
-                                                res.setHeader('Content-Type', 'application/json; charset=utf-8');
-                                                res.end(mediaStatus);
-                                        } else {
-                                                res.statusCode = 500;
-                                                res.end();
-                                        }
-                                });
-                        } else {
-                                res.statusCode = 400;
-                                res.end('Parameter error');
-                        }
-                }
-
+		else if (parsedUrl['pathname']=="/launchMyApp") {
+				res.statusCode = 200;
+				res.setHeader('Content-Type', 'application/json; charset=utf-8');
+				if (parsedUrl['query']['address'] && parsedUrl['query']['url'] ) {
+						launchMyApp(parsedUrl['query']['address'],  parsedUrl['query']['url']).then(mediaStatus => {
+								if (mediaStatus) {
+										res.statusCode = 200;
+										res.setHeader('Content-Type', 'application/json; charset=utf-8');
+										res.end(mediaStatus);
+								} else {
+										res.statusCode = 500;
+										res.end();
+								}
+						});
+				} else {
+						res.statusCode = 400;
+						res.end('Parameter error');
+				}
+		}
 
 		else if (parsedUrl['pathname']=="/setMediaPlayback") {
 			res.statusCode = 200;
@@ -775,17 +774,25 @@ function setMediaPlayback(address, mediaType, mediaUrl, mediaStreamType, mediaTi
 	});
 }
 
-function launchMyApp(address, appId) {
+function launchMyApp(address, url) {
 	return new Promise(resolve => {
 		var Client = require('castv2-client').Client;
-		var Application = require('castv2-client').Application;
+		var Castdeck = require('castv2-castdeck').Castdeck;
 		var client = new Client();
 
-		debug('launchMyApp addr: %s', address, 'seId:', appId);
-
-		Application.APP_ID=appId
 	  	client.connect(parseAddress(address), function() {
-			client.launch(Application);
+			client.launch(Castdeck, function(err, player) {
+			  	player.load(url);
+			    player.on('status', function(status) {
+			        debug('status: ', util.inspect(status));
+			        }
+			   	);
+			
+			    setTimeout(() => {
+			    	closeClient(client);
+			    	resolve(null);
+			  	}, appLoadTimeout);
+		    });
 	 	});
 
 	  	client.on('error', function(err) {
